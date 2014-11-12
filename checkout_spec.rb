@@ -1,5 +1,4 @@
 class Checkout
-
     def initialize observer
         @observer = observer
     end
@@ -7,36 +6,55 @@ class Checkout
     def scan item
         @observer.item_scanned
     end
-
 end
 
-class Item 
+class Item
     def initialize key
     end
 end
 
-describe 'Checkout' do
-
-    before(:each) do
-        @item_scan_count = 0
+class DiscountCalculator
+    def initialize observer
         @discount = 0
+        @observer = observer
+
+        @item_scan_count = 0
     end
 
     def item_scanned
         @item_scan_count = @item_scan_count.next
-        if (@item_scan_count == 3)
-            @discount = 20
+        if @item_scan_count == 3
+            @observer.discount_notification 20
+        elsif @item_scan_count == 2
+            @observer.discount_notification 30
         end
+    end
+end
+
+# Next up: maybe add a test to check scanning itemA twice gives 0 discount.
+# This will force the refactor.
+
+describe 'Checkout' do
+    before(:each) do
+        @discount = 0
+
+        disount_observer = self
+        scan_observer = DiscountCalculator.new disount_observer
+
+        @checkout = Checkout.new scan_observer
+    end
+
+    def discount_notification discount
+        @discount = discount
     end
 
     it 'should give 20 discount when 3 itemAs scanned' do
 
         itemA = Item.new "A"
 
-        checkout = Checkout.new self
-        checkout.scan(itemA)
-        checkout.scan(itemA)
-        checkout.scan(itemA)
+        @checkout.scan(itemA)
+        @checkout.scan(itemA)
+        @checkout.scan(itemA)
 
         expect(@discount).to eq(20)
     end
@@ -45,11 +63,9 @@ describe 'Checkout' do
 
         itemB = Item.new "B"
 
-        checkout = Checkout.new self
-        checkout.scan(itemB)
-        checkout.scan(itemB)
+        @checkout.scan(itemB)
+        @checkout.scan(itemB)
 
         expect(@discount).to eq(30)
     end
-
 end
