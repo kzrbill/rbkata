@@ -4,45 +4,99 @@ class Checkout
     end
 
     def scan item
-        @observer.item_scanned
+        @observer.item_scanned(item)
         Checkout.new(@observer)
     end
 end
 
 class Item
-    def initialize key
+    attr_reader :id
+
+    def initialize id
+        @id = id
     end
+
+    def ==(other)
+        @id == other.id
+    end
+
+    alias eql? ==
+
+    def hash
+        @id.hash
+    end
+end
+
+class Money
+    def initialize amount
+        @amount = amount
+    end
+
+    def ==(other)
+        @amount == other.amount
+    end
+
+    attr_reader :amount
 end
 
 class DiscountCalculator
     def initialize observer
-        @discount = 0
         @observer = observer
-
-        @item_scan_count = 0
+        @statuses = {
+            Item.new(:itemA) => {:count => 0, :threshhold => 3, :amount => Money.new(20)},
+            Item.new(:itemB) => {:count => 0, :threshhold => 2, :amount => Money.new(30)},
+        }
     end
 
-    def item_scanned
-        @item_scan_count = @item_scan_count.next
-        if @item_scan_count == 3
-            @observer.discount_notification 20
-        elsif @item_scan_count == 2
-            @observer.discount_notification 30
+    def item_scanned(item)
+
+        iterate(item)
+
+        if (is_at_threshold?(item))
+
+            @observer.discount_notification(item_hash(item)[:amount])
+            reset(item)
+
         end
+    end
+
+    def iterate(item)
+        item_hash = item_hash(item)
+        item_hash[:count] = item_hash[:count] + 1
+    end
+
+    def reset(item)
+        item_hash = item_hash(item)
+        item_hash[:count] = 0
+    end
+
+    def is_at_threshold?(item)
+        item_hash = item_hash(item)
+        item_hash[:count] == item_hash[:threshhold]
+    end
+
+    def item_hash(item)
+        @statuses[item]
+    end
+
+end
+
+describe 'Item' do
+    it 'itemA should equal itemA' do
+        expect(Item.new(:itemA)).to eq(Item.new(:itemA))
+    end
+
+    it 'itemA should not equal itemB' do
+        expect(Item.new(:itemA)).not_to eq(Item.new(:itemB))
     end
 end
 
-# Refactor to immutable.
-# Next up: maybe add a test to check scanning itemA twice gives 0 discount.
-# This will force the refactor.
-
 describe 'Checkout' do
     before(:each) do
-        @discount = 0
+        @discount = Money.new(0)
 
         disount_observer = self
         scan_observer = DiscountCalculator.new(disount_observer)
-
         @checkout = Checkout.new(scan_observer)
     end
 
@@ -50,26 +104,37 @@ describe 'Checkout' do
         @discount = discount
     end
 
+    it 'should give 0 discount when 2 itemAs scanned' do
+
+        itemA = Item.new(:itemA)
+
+        @checkout
+        .scan(itemA)
+        .scan(itemA)
+
+        expect(@discount).to eq(Money.new(0))
+    end
+
     it 'should give 20 discount when 3 itemAs scanned' do
 
-        itemA = Item.new("A")
+        itemA = Item.new(:itemA)
 
         @checkout
         .scan(itemA)
         .scan(itemA)
         .scan(itemA)
 
-        expect(@discount).to eq(20)
+        expect(@discount).to eq(Money.new(20))
     end
 
     it 'should give 30 discount when 2 itemBs scanned' do
 
-        itemB = Item.new("B")
+        itemB = Item.new(:itemB)
 
         @checkout
         .scan(itemB)
         .scan(itemB)
 
-        expect(@discount).to eq(30)
+        expect(@discount).to eq(Money.new(30))
     end
 end
