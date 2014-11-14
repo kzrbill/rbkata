@@ -39,6 +39,7 @@ class Money
     attr_reader :amount
 end
 
+# Smell: this not immutable, state is updated in count
 class DiscountCalculator
     def initialize observer
         @observer = observer
@@ -49,14 +50,14 @@ class DiscountCalculator
     end
 
     def item_scanned(item)
-
         iterate(item)
 
         if (is_at_threshold?(item))
+            discount_amount = discount_amount(item)
 
-            @observer.discount_notification(item_hash(item)[:amount])
+            @observer.discount_notification(discount_amount)
+
             reset(item)
-
         end
     end
 
@@ -75,10 +76,14 @@ class DiscountCalculator
         item_hash[:count] == item_hash[:threshhold]
     end
 
+    def discount_amount(item)
+        item_hash = item_hash(item)
+        item_hash[:amount]
+    end
+
     def item_hash(item)
         @statuses[item]
     end
-
 end
 
 describe 'Item' do
@@ -91,7 +96,7 @@ describe 'Item' do
     end
 end
 
-describe 'Checkout' do
+describe 'Discount Observations' do
     before(:each) do
         @discount = Money.new(0)
 
