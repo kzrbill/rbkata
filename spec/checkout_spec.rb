@@ -1,10 +1,11 @@
 class Checkout
-    def initialize observer
+    def initialize(observer)
         @observer = observer
     end
 
     def scan item
         @observer.item_scanned
+        Checkout.new(@observer)
     end
 end
 
@@ -31,6 +32,7 @@ class DiscountCalculator
     end
 end
 
+# Refactor to immutable.
 # Next up: maybe add a test to check scanning itemA twice gives 0 discount.
 # This will force the refactor.
 
@@ -39,9 +41,9 @@ describe 'Checkout' do
         @discount = 0
 
         disount_observer = self
-        scan_observer = DiscountCalculator.new disount_observer
+        scan_observer = DiscountCalculator.new(disount_observer)
 
-        @checkout = Checkout.new scan_observer
+        @checkout = Checkout.new(scan_observer)
     end
 
     def discount_notification discount
@@ -50,21 +52,23 @@ describe 'Checkout' do
 
     it 'should give 20 discount when 3 itemAs scanned' do
 
-        itemA = Item.new "A"
+        itemA = Item.new("A")
 
-        @checkout.scan(itemA)
-        @checkout.scan(itemA)
-        @checkout.scan(itemA)
+        @checkout
+        .scan(itemA)
+        .scan(itemA)
+        .scan(itemA)
 
         expect(@discount).to eq(20)
     end
 
     it 'should give 30 discount when 2 itemBs scanned' do
 
-        itemB = Item.new "B"
+        itemB = Item.new("B")
 
-        @checkout.scan(itemB)
-        @checkout.scan(itemB)
+        @checkout
+        .scan(itemB)
+        .scan(itemB)
 
         expect(@discount).to eq(30)
     end
